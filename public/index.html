@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VISIO — AI Vision Assistant (Azure)</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --panel: #16161f;
+    --border: #2a2a38;
+    --accent: #7df9ff;
+    --accent2: #ff6bff;
+    --accent3: #ffe566;
+    --text: #e8e8f0;
+    --muted: #5a5a72;
+    --success: #4dff91;
+    --error: #ff4d6a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(125, 249, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(125, 249, 255, 0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ambient glow */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    right: -200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(125,249,255,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 60px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-mark {
+    width: 40px;
+    height: 40px;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .logo-mark svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .logo-text {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .logo-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Main layout */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 28px;
+    align-items: start;
+  }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 16px;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.25s, background 0.25s;
+    background: var(--surface);
+  }
+
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(125, 249, 255, 0.03);
+  }
+
+  .upload-zone.has-image {
+    border-style: solid;
+    border-color: var(--border);
+    min-height: unset;
+    cursor: default;
+  }
+
+  .upload-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+  }
+
+  .upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 40px;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .upload-icon {
+    width: 64px;
+    height: 64px;
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .upload-zone:hover .upload-icon {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+  }
+
+  .upload-icon svg {
+    width: 28px;
+    height: 28px;
+    stroke: var(--muted);
+    transition: stroke 0.2s;
+  }
+
+  .upload-zone:hover .upload-icon svg {
+    stroke: var(--accent);
+  }
+
+  .upload-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .upload-hint {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  .preview-container {
+    position: relative;
+  }
+
+  .preview-img {
+    width: 100%;
+    display: block;
+    border-radius: 14px;
+    max-height: 500px;
+    object-fit: contain;
+    background: #0d0d14;
+  }
+
+  .preview-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 8px;
+  }
+
+  .icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--muted);
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .icon-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .icon-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  /* Sidebar panel */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex: 1;
+  }
+
+  .panel-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    border-radius: 100px;
+    border: 1px solid currentColor;
+  }
+
+  .badge-cyan { color: var(--accent); border-color: rgba(125,249,255,0.3); background: rgba(125,249,255,0.07); }
+  .badge-magenta { color: var(--accent2); border-color: rgba(255,107,255,0.3); background: rgba(255,107,255,0.07); }
+
+  /* Mode selector */
+  .mode-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 16px;
+  }
+
+  .mode-btn {
+    padding: 12px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mode-btn:hover {
+    border-color: var(--muted);
+  }
+
+  .mode-btn.active {
+    border-color: var(--accent);
+    background: rgba(125,249,255,0.08);
+  }
+
+  .mode-icon {
+    font-size: 18px;
+  }
+
+  .mode-name {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--text);
+  }
+
+  .mode-desc {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+
+  .mode-btn.active .mode-name { color: var(--accent); }
+
+  /* Prompt input */
+  .prompt-area {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .prompt-input {
+    width: 100%;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    resize: none;
+    outline: none;
+    min-height: 80px;
+    transition: border-color 0.2s;
+    line-height: 1.6;
+  }
+
+  .prompt-input:focus {
+    border-color: var(--accent);
+  }
+
+  .prompt-input::placeholder {
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* Quick prompts */
+  .quick-prompts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .qp-chip {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.03em;
+  }
+
+  .qp-chip:hover {
+    border-color: var(--accent2);
+    color: var(--accent2);
+    background: rgba(255,107,255,0.06);
+  }
+
+  /* Analyze button */
+  .analyze-btn {
+    width: 100%;
+    padding: 15px;
+    border-radius: 12px;
+    border: none;
+    background: var(--accent);
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .analyze-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    transition: left 0.4s;
+  }
+
+  .analyze-btn:hover::before {
+    left: 100%;
+  }
+
+  .analyze-btn:hover {
+    background: #a0ffff;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(125,249,255,0.25);
+  }
+
+  .analyze-btn:disabled {
+    background: var(--border);
+    color: var(--muted);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .analyze-btn:disabled::before { display: none; }
+
+  /* Results */
+  .results-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-top: 28px;
+    animation: slideUp 0.35s ease;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(90deg, rgba(125,249,255,0.04), transparent);
+  }
+
+  .results-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .results-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+  }
+
+  .results-body {
+    padding: 24px;
+    line-height: 1.8;
+    font-size: 14px;
+    color: var(--text);
+    white-space: pre-wrap;
+    max-height: 480px;
+    overflow-y: auto;
+  }
+
+  .results-body::-webkit-scrollbar {
+    width: 4px;
+  }
+  .results-body::-webkit-scrollbar-track { background: transparent; }
+  .results-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Loading state */
+  .loading-state {
+    padding: 40px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .loader-ring {
+    width: 48px;
+    height: 48px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .loader-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    animation: blink 1.4s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Error */
+  .error-notice {
+    margin: 16px 24px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,77,106,0.3);
+    background: rgba(255,77,106,0.06);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--error);
+    letter-spacing: 0.03em;
+  }
+
+  /* Copy button */
+  .copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+
+  .copy-btn:hover {
+    border-color: var(--accent3);
+    color: var(--accent3);
+  }
+
+  .copy-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  /* History strip */
+  .history-strip {
+    margin-top: 28px;
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+
+  .history-strip::-webkit-scrollbar { height: 3px; }
+  .history-strip::-webkit-scrollbar-track { background: transparent; }
+  .history-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .history-thumb {
+    flex-shrink: 0;
+    width: 72px;
+    height: 72px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s, border-color 0.2s;
+    position: relative;
+  }
+
+  .history-thumb:hover {
+    opacity: 1;
+    border-color: var(--accent);
+  }
+
+  .history-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .history-thumb .hist-label {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 8px;
+    background: rgba(0,0,0,0.7);
+    color: var(--accent);
+    text-align: center;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* Watermark area */
+  .no-image-hint {
+    display: none;
+    text-align: center;
+    padding: 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--error);
+    letter-spacing: 0.05em;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .main {
+      grid-template-columns: 1fr;
+    }
+    .sidebar {
+      order: -1;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="38" height="38" rx="10" stroke="#2a2a38" stroke-width="1.5"/>
+          <circle cx="20" cy="20" r="10" stroke="#7df9ff" stroke-width="1.5"/>
+          <circle cx="20" cy="20" r="4" fill="#7df9ff" opacity="0.9"/>
+          <line x1="20" y1="4" x2="20" y2="10" stroke="#7df9ff" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="20" y1="30" x2="20" y2="36" stroke="#7df9ff" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="4" y1="20" x2="10" y2="20" stroke="#7df9ff" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="30" y1="20" x2="36" y2="20" stroke="#7df9ff" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="20" cy="20" r="6.5" stroke="#7df9ff" stroke-width="0.75" stroke-dasharray="2 2" opacity="0.4"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-text">VISIO</div>
+        <div class="logo-sub">AI Vision Assistant (Azure)</div>
+      </div>
+    </div>
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      Azure OpenAI · Online
+    </div>
+  </header>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Left: Image area -->
+    <div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" class="upload-input" id="fileInput" accept="image/*">
+        <div class="upload-placeholder" id="placeholder">
+          <div class="upload-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <div class="upload-label">Drop an image or click to browse</div>
+          <div class="upload-hint">PNG · JPG · WEBP · GIF · up to 20MB</div>
+        </div>
+        <div class="preview-container" id="previewContainer" style="display:none; width:100%;">
+          <img id="previewImg" class="preview-img" alt="Preview">
+          <div class="preview-actions">
+            <button class="icon-btn" id="changeImgBtn" title="Change image" onclick="resetImage(event)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="no-image-hint" id="noImageHint">⚠ Please upload an image before analyzing</div>
+
+      <!-- Results -->
+      <div id="resultsPanel" style="display:none;"></div>
+
+      <!-- History -->
+      <div class="history-strip" id="historyStrip" style="display:none;"></div>
+    </div>
+
+    <!-- Right: Sidebar -->
+    <div class="sidebar">
+
+      <!-- Analysis mode -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-label">Analysis Mode</span>
+          <span class="panel-badge badge-cyan">SELECT ONE</span>
+        </div>
+        <div class="mode-grid">
+          <button class="mode-btn active" data-mode="describe" onclick="selectMode(this)">
+            <div class="mode-icon">🔍</div>
+            <div class="mode-name">Describe</div>
+            <div class="mode-desc">General overview</div>
+          </button>
+          <button class="mode-btn" data-mode="extract" onclick="selectMode(this)">
+            <div class="mode-icon">📋</div>
+            <div class="mode-name">Extract Text</div>
+            <div class="mode-desc">OCR & transcribe</div>
+          </button>
+          <button class="mode-btn" data-mode="objects" onclick="selectMode(this)">
+            <div class="mode-icon">🧩</div>
+            <div class="mode-name">Detect Objects</div>
+            <div class="mode-desc">Identify elements</div>
+          </button>
+          <button class="mode-btn" data-mode="analyze" onclick="selectMode(this)">
+            <div class="mode-icon">📊</div>
+            <div class="mode-name">Deep Analysis</div>
+            <div class="mode-desc">Detailed insights</div>
+          </button>
+          <button class="mode-btn" data-mode="caption" onclick="selectMode(this)">
+            <div class="mode-icon">✍️</div>
+            <div class="mode-name">Caption</div>
+            <div class="mode-desc">Social-ready text</div>
+          </button>
+          <button class="mode-btn" data-mode="custom" onclick="selectMode(this)">
+            <div class="mode-icon">⚡</div>
+            <div class="mode-name">Custom</div>
+            <div class="mode-desc">Your own prompt</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Prompt -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-label">Custom Prompt</span>
+          <span class="panel-badge badge-magenta">OPTIONAL</span>
+        </div>
+        <div class="prompt-area">
+          <textarea
+            class="prompt-input"
+            id="promptInput"
+            placeholder="Ask anything about the image… e.g. 'What emotions does this convey?'"
+            rows="4"
+          ></textarea>
+          <div class="quick-prompts">
+            <button class="qp-chip" onclick="setPrompt('What colors dominate this image?')">Color palette</button>
+            <button class="qp-chip" onclick="setPrompt('Is there any text visible? Transcribe it.')">Transcribe</button>
+            <button class="qp-chip" onclick="setPrompt('Describe the mood and atmosphere.')">Mood</button>
+            <button class="qp-chip" onclick="setPrompt('List every object you can identify.')">Objects</button>
+            <button class="qp-chip" onclick="setPrompt('Suggest improvements to this image.')">Improve</button>
+          </div>
+          <button class="analyze-btn" id="analyzeBtn" onclick="analyze()">
+            ↳ Analyze Image
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let currentMode = 'describe';
+  let imageBase64 = null;
+  let imageType = 'image/jpeg';
+  let analysisHistory = [];
+  let analysisStart = 0;
+
+  const modePrompts = {
+    describe: "Provide a clear, well-structured description of this image. Cover the main subject, background, colors, composition, and any notable details. Write in flowing paragraphs.",
+    extract: "Extract and transcribe all text visible in this image. Preserve formatting, hierarchy, and structure as much as possible. If no text is present, say so clearly.",
+    objects: "Identify and list every distinct object, person, animal, or element you can detect in this image. For each item, note its approximate location and any notable characteristics.",
+    analyze: "Perform a deep analytical breakdown of this image covering: (1) Main subject & composition, (2) Color palette & lighting, (3) Artistic style or category, (4) Technical quality, (5) Possible context or use-case, (6) Key observations and insights.",
+    caption: "Write 3 creative captions for this image: one for Instagram (casual + hashtags), one for LinkedIn (professional context), and one for a news article (neutral, descriptive).",
+    custom: ""
+  };
+
+  function selectMode(btn) {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentMode = btn.dataset.mode;
+    if (currentMode !== 'custom') {
+      document.getElementById('promptInput').placeholder = modePrompts[currentMode].substring(0, 80) + '…';
+    } else {
+      document.getElementById('promptInput').placeholder = 'Type your custom question or instruction…';
+    }
+  }
+
+  function setPrompt(text) {
+    const inp = document.getElementById('promptInput');
+    inp.value = text;
+    inp.focus();
+    // Auto-switch to custom mode
+    document.querySelectorAll('.mode-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === 'custom');
+    });
+    currentMode = 'custom';
+  }
+
+  // File handling
+  const fileInput = document.getElementById('fileInput');
+  const uploadZone = document.getElementById('uploadZone');
+
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('drag-over');
+  });
+
+  uploadZone.addEventListener('dragleave', () => {
+    uploadZone.classList.remove('drag-over');
+  });
+
+  uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) handleFile(file);
+  });
+
+  function handleFile(file) {
+    imageType = file.type || 'image/jpeg';
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target.result;
+      imageBase64 = result.split(',')[1];
+      document.getElementById('previewImg').src = result;
+      document.getElementById('placeholder').style.display = 'none';
+      document.getElementById('previewContainer').style.display = 'block';
+      uploadZone.classList.add('has-image');
+      uploadZone.querySelector('.upload-input').style.pointerEvents = 'none';
+      document.getElementById('noImageHint').style.display = 'none';
+      // Clear previous results
+      document.getElementById('resultsPanel').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function resetImage(e) {
+    e.stopPropagation();
+    imageBase64 = null;
+    document.getElementById('previewImg').src = '';
+    document.getElementById('placeholder').style.display = 'flex';
+    document.getElementById('previewContainer').style.display = 'none';
+    uploadZone.classList.remove('has-image');
+    uploadZone.querySelector('.upload-input').style.pointerEvents = 'auto';
+    fileInput.value = '';
+  }
+
+  async function analyze() {
+    if (!imageBase64) {
+      document.getElementById('noImageHint').style.display = 'block';
+      return;
+    }
+    document.getElementById('noImageHint').style.display = 'none';
+
+    const customPrompt = document.getElementById('promptInput').value.trim();
+    const prompt = (currentMode === 'custom' && customPrompt)
+      ? customPrompt
+      : (customPrompt ? customPrompt + '\n\n' + modePrompts[currentMode] : modePrompts[currentMode]);
+
+    const btn = document.getElementById('analyzeBtn');
+    btn.disabled = true;
+    btn.textContent = 'Analyzing…';
+    analysisStart = Date.now();
+
+    // Show loading
+    const panel = document.getElementById('resultsPanel');
+    panel.style.display = 'block';
+    panel.innerHTML = `
+      <div class="results-panel">
+        <div class="results-header">
+          <span class="results-title">Processing</span>
+          <span class="results-meta">Claude Vision</span>
+        </div>
+        <div class="loading-state">
+          <div class="loader-ring"></div>
+          <div class="loader-text">Analyzing image…</div>
+        </div>
+      </div>`;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64,
+          mediaType: imageType,
+          prompt,
+        })
+      });
+
+      const data = await response.json();
+      const elapsed = ((Date.now() - analysisStart) / 1000).toFixed(1);
+
+      if (!response.ok) throw new Error(data.error || 'API error');
+
+      const text = data.result || 'No response received.';
+      const modeLabel = currentMode.toUpperCase();
+
+      // Save to history
+      const imgSrc = document.getElementById('previewImg').src;
+      analysisHistory.unshift({ imgSrc, text, mode: modeLabel, time: new Date().toLocaleTimeString() });
+      if (analysisHistory.length > 6) analysisHistory.pop();
+
+      panel.innerHTML = `
+        <div class="results-panel">
+          <div class="results-header">
+            <span class="results-title">✦ Analysis Complete · ${modeLabel}</span>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <span class="results-meta">${elapsed}s · GPT-4o Mini</span>
+              <button class="copy-btn" onclick="copyResult(this, \`${escapeBacktick(text)}\`)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                Copy
+              </button>
+            </div>
+          </div>
+          <div class="results-body">${escapeHtml(text)}</div>
+        </div>`;
+
+      updateHistory();
+
+    } catch (err) {
+      panel.innerHTML = `
+        <div class="results-panel">
+          <div class="results-header">
+            <span class="results-title">Error</span>
+          </div>
+          <div class="error-notice">⚠ ${escapeHtml(err.message)}</div>
+        </div>`;
+    }
+
+    btn.disabled = false;
+    btn.textContent = '↳ Analyze Image';
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function escapeBacktick(s) {
+    return s.replace(/`/g,'\\`').replace(/\$/g,'\\$');
+  }
+
+  async function copyResult(btn, text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = '✓ Copied';
+      setTimeout(() => { btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy`; }, 2000);
+    } catch {}
+  }
+
+  function updateHistory() {
+    if (analysisHistory.length === 0) return;
+    const strip = document.getElementById('historyStrip');
+    strip.style.display = 'flex';
+    strip.innerHTML = analysisHistory.map((h, i) => `
+      <div class="history-thumb" title="${h.mode} · ${h.time}">
+        <img src="${h.imgSrc}" alt="History ${i+1}">
+        <div class="hist-label">${h.mode}</div>
+      </div>`).join('');
+  }
+</script>
+</body>
+</html>
